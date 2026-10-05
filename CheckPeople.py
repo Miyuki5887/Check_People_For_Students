@@ -142,8 +142,6 @@ class App:
         self.WindowPreSitting([1000, 918])
         self.MainButtonBuild()
         self.WindowsBuild()
-        print(self.ListName01)
-        print(self.ListName02)
 
 
 if __name__ == "__main__":
