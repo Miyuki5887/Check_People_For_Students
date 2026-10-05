@@ -1,0 +1,63 @@
+# ==========================================================
+#  Check_People_For_Students  .gitignore
+#  目的：防止真实名单、编译缓存与临时文件被提交到公开仓库
+# ==========================================================
+
+# ---------- 隐私数据：绝不提交（最重要的一条） ----------
+# Name.xlsx 是真实班级名单，一旦提交就无法从历史中彻底删除
+Name.xlsx
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+# 如需提交空白的名单模板，取消下面这行的注释并改成你的模板文件名
+# !名单模板.xlsx
+
+# ---------- Python 编译产物 ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ---------- 虚拟环境 / 缓存 ----------
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# ---------- 编辑器 / IDE ----------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---------- 操作系统文件 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 临时 / 备份文件 ----------
+*.tmp
+*.temp
+*.bak
+*.old
+*.orig
+*.log
+~$*
+新建 文本文档.txt
+
+# ---------- 测试截图等产物 ----------
+*_shot.png
+*_shot2.png
+*_preview.png
