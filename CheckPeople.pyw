@@ -1,12 +1,49 @@
+import ctypes
 import os
 import subprocess
 import sys
-import time
 import tkinter as tk
+import tkinter.messagebox as mb
 
 import ButtonChange as btnC
 
-GRAY, WHITE, BLUE = "#e0e0e0", "#ffffff", "#4169e1"
+(
+    GRAY,
+    WHITE,
+    BLUE,
+    BLACK,
+) = (
+    "#e0e0e0",
+    "#f2f3f5",
+    "#1677FF",
+    "#000000",
+)
+
+
+def EnableDpiAwareness():
+    try:
+        if ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4)):
+            return "per-monitor-v2"
+    except Exception:
+        pass
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        return "per-monitor"
+    except Exception:
+        pass
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+        return "system"
+    except Exception:
+        return "none"
+
+
+def SystemScale():
+    try:
+        dpi = ctypes.windll.user32.GetDpiForSystem()
+    except Exception:
+        dpi = 96
+    return (dpi or 96) / 96.0
 
 
 def BaseDir():
@@ -21,20 +58,34 @@ def DataPath(FileName):
 
 class App:
     def __init__(self):
-        self.Initailize()
+        self.Scale = SystemScale()
+        self.SysInitailize()
         self.WindowsMain = tk.Tk()
         self.WindowsMain.title("学生查人软件")
         self.TkInit()
         self.ListInit()
 
-    def Initailize(self):
+    def Px(self, Number):
+        return int(round(Number * self.Scale))
+
+    def ErrorTk(self, ErrorTitle, ErrorText):
+        ErrorWindows = tk.Tk()
+        ErrorWindows.withdraw()
+        mb.showerror(ErrorTitle, ErrorText)
+        ErrorWindows.destroy()
+        raise SystemExit(1)
+
+    def SysInitailize(self):
         # 检查库是否安装
         try:
             import openpyxl
 
             self.ExcelImportMoudel = openpyxl
         except ModuleNotFoundError:
-            print("你需要下载openpyxl，下载代码已在剪切板复制，请前往PowerShell下载")
+            self.ErrorTk(
+                "启动失败",
+                "你需要下载openpyxl，下载命令已存入剪切板，请前往PowerShell执行",
+            )
             subprocess.run(
                 "clip",
                 input="pip install openpyxl",
@@ -42,21 +93,17 @@ class App:
                 encoding="utf-8",
                 check=True,
             )
-            print("已复制到剪切板，本程序将在15秒后自动关闭")
-            time.sleep(15)
-            os._exit()
+            return
         # 检查xlsx文件是否导入
         try:
             TestList = openpyxl.load_workbook(DataPath("Name.xlsx"))
             del TestList
         except FileNotFoundError:
-            print(
-                "您需要在当前文件所在的文件夹内放入Name.xlsx文件，或者把您的名单改为Name.xlsx"
+            self.ErrorTk(
+                "启动失败",
+                "您需要在当前文件所在的文件夹内放入Name.xlsx文件，或者把您的名单改为Name.xlsx",
             )
-            print("程序查找的位置：" + DataPath("Name.xlsx"))
-            print("本程序将在15秒后自动关闭")
-            time.sleep(15)
-            os._exit()
+            return
 
     def TkInit(self):
         self.header = tk.Frame(self.WindowsMain, bg=BLUE)
@@ -65,23 +112,23 @@ class App:
             self.header,
             text="学生查人软件",
             bg=BLUE,
-            fg="#000000",
+            fg="#ffffff",
             font=("Microsoft YaHei UI", 18),
-        ).grid(row=0, column=0, padx=24, pady=20, sticky="w")
+        ).grid(row=0, column=0, padx=self.Px(24), pady=self.Px(20), sticky="w")
         tk.Label(
             self.header,
             text="绿色=已到 红色=未到 右侧可以一键导出结果",
             bg=BLUE,
-            fg="#000000",
-            font=("Microsoft YaHei UI", 8),
-        ).grid(row=1, column=0, padx=24, pady=6)
+            fg="#ffffff",
+            font=("Microsoft YaHei UI", 10),
+        ).grid(row=1, column=0, padx=self.Px(24), pady=self.Px(6))
         self.ButtonArea = tk.Frame(self.WindowsMain, bg=GRAY)
         self.ButtonArea.grid(row=1, column=0, rowspan=2, sticky="nsew")
         self.AttendedArea = tk.Frame(
             self.WindowsMain,
             bg=WHITE,
-            width=300,
-            height=414,
+            width=self.Px(300),
+            height=self.Px(414),
             bd=0,
             highlightthickness=0,
         )
@@ -94,8 +141,8 @@ class App:
         self.AbsentArea = tk.Frame(
             self.WindowsMain,
             bg=WHITE,
-            width=300,
-            height=404,
+            width=self.Px(300),
+            height=self.Px(404),
             bd=0,
             highlightthickness=0,
         )
@@ -105,7 +152,7 @@ class App:
             self.AttendedArea,
             width=1,
             height=1,
-            fg="#000000",
+            fg=BLACK,
             font=("Microsoft YaHei UI", 12),
             relief="flat",
             bd=0,
@@ -114,7 +161,7 @@ class App:
         )
         self.AttendOutputText.pack(
             side="top",
-            padx=24,
+            padx=self.Px(24),
             fill="both",
             expand=True,
         )
@@ -123,7 +170,7 @@ class App:
             self.AbsentArea,
             width=1,
             height=1,
-            fg="#000000",
+            fg=BLACK,
             font=("Microsoft YaHei UI", 12),
             relief="flat",
             bd=0,
@@ -132,13 +179,12 @@ class App:
         )
         self.AbsentOutputText.pack(
             side="top",
-            padx=24,
+            padx=self.Px(24),
             fill="both",
             expand=True,
         )
         self.AbsentOutputText.config(state="disabled")
         self.AttendCopy = ""
-        self.AbsentCopy = ""
         self.CopyButton(
             self.AttendedArea,
             text="一键导出已到名单",
@@ -163,7 +209,13 @@ class App:
         self.Sheet01 = self.Excel01["Sheet1"]
 
     def CopyButton(self, master, text, command):
-        btn = btnC.ChangedButton(master, text=text, style="primary")
+        btn = btnC.ChangedButton(
+            master,
+            text=text,
+            style="primary",
+            padx=self.Px(16),
+            pady=self.Px(7),
+        )
         btn.pack(side="bottom")
         btn.config(command=command)
         return btn
@@ -181,11 +233,11 @@ class App:
         Length = Size[0]
         Weigth = Size[1]
         self.WindowsMain.iconbitmap(DataPath("icon.ico"))
-        self.WindowsMain.geometry(str(Length) + "x" + str(Weigth))
+        self.WindowsMain.geometry(str(self.Px(Length)) + "x" + str(self.Px(Weigth)))
         self.WindowsMain.configure(bg=GRAY)
         self.WindowsMain.grid_columnconfigure(0, weight=1)
-        self.WindowsMain.grid_columnconfigure(1, weight=0, minsize=300)
-        self.WindowsMain.grid_rowconfigure(0, weight=0, minsize=100)
+        self.WindowsMain.grid_columnconfigure(1, weight=0, minsize=self.Px(300))
+        self.WindowsMain.grid_rowconfigure(0, weight=0, minsize=self.Px(100))
         self.WindowsMain.grid_rowconfigure(1, weight=1, uniform="right")
         self.WindowsMain.grid_rowconfigure(2, weight=1, uniform="right")
 
@@ -194,7 +246,15 @@ class App:
 
     def OneButtonBuild(self, Buttonname, Line, Group, ListPosition):
         btn = btnC.ChangedButton(self.ButtonArea, text=Buttonname, style="Attend")
-        btn.grid(row=Line, column=Group, padx=10, pady=10, ipadx=8, ipady=7, sticky="w")
+        btn.grid(
+            row=Line,
+            column=Group,
+            padx=self.Px(10),
+            pady=self.Px(10),
+            ipadx=self.Px(8),
+            ipady=self.Px(7),
+            sticky="w",
+        )
         btn.config(command=lambda b=btn, idx=ListPosition: self.ClickButton(b, idx))
 
     def MainButtonBuild(self):
@@ -237,9 +297,6 @@ class App:
     def ListOutput(self):
         self.AttendOutputText.config(state="normal")
         self.AbsentOutputText.config(state="normal")
-        # 每次重新生成，避免重复调用时把名单不断累加
-        self.AttendCopy = ""
-        self.AbsentCopy = ""
         AttendOutput = ""
         AbsentOutput = ""
         ListNum = 0
@@ -281,4 +338,5 @@ class App:
 
 
 if __name__ == "__main__":
+    EnableDpiAwareness()
     App().main()
