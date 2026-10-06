@@ -1,20 +1,64 @@
+import os
+import subprocess
+import sys
+import time
 import tkinter as tk
 
 import ButtonChange as btnC
-import openpyxl
 
 GRAY, WHITE, BLUE = "#e0e0e0", "#ffffff", "#4169e1"
 
 
+def BaseDir():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def DataPath(FileName):
+    return os.path.join(BaseDir(), FileName)
+
+
 class App:
     def __init__(self):
+        self.Initailize()
         self.WindowsMain = tk.Tk()
         self.WindowsMain.title("学生查人软件")
-        self.ListName01 = []
-        self.ListName02 = []
-        self.ListNumber = 0
-        self.Excel01 = openpyxl.load_workbook("Name.xlsx")
-        self.Sheet01 = self.Excel01["Sheet1"]
+        self.TkInit()
+        self.ListInit()
+
+    def Initailize(self):
+        # 检查库是否安装
+        try:
+            import openpyxl
+
+            self.ExcelImportMoudel = openpyxl
+        except ModuleNotFoundError:
+            print("你需要下载openpyxl，下载代码已在剪切板复制，请前往PowerShell下载")
+            subprocess.run(
+                "clip",
+                input="pip install openpyxl",
+                text=True,
+                encoding="utf-8",
+                check=True,
+            )
+            print("已复制到剪切板，本程序将在15秒后自动关闭")
+            time.sleep(15)
+            os._exit()
+        # 检查xlsx文件是否导入
+        try:
+            TestList = openpyxl.load_workbook(DataPath("Name.xlsx"))
+            del TestList
+        except FileNotFoundError:
+            print(
+                "您需要在当前文件所在的文件夹内放入Name.xlsx文件，或者把您的名单改为Name.xlsx"
+            )
+            print("程序查找的位置：" + DataPath("Name.xlsx"))
+            print("本程序将在15秒后自动关闭")
+            time.sleep(15)
+            os._exit()
+
+    def TkInit(self):
         self.header = tk.Frame(self.WindowsMain, bg=BLUE)
         self.header.grid(row=0, column=0, columnspan=2, sticky="nsew")
         tk.Label(
@@ -23,21 +67,42 @@ class App:
             bg=BLUE,
             fg="#000000",
             font=("Microsoft YaHei UI", 18),
-        ).pack(side="left", padx=24)
+        ).grid(row=0, column=0, padx=24, pady=20, sticky="w")
+        tk.Label(
+            self.header,
+            text="绿色=已到 红色=未到 右侧可以一键导出结果",
+            bg=BLUE,
+            fg="#000000",
+            font=("Microsoft YaHei UI", 8),
+        ).grid(row=1, column=0, padx=24, pady=6)
         self.ButtonArea = tk.Frame(self.WindowsMain, bg=GRAY)
-        self.ButtonArea.grid(row=1, column=0, sticky="nsew")
-        self.TextArea = tk.Frame(
+        self.ButtonArea.grid(row=1, column=0, rowspan=2, sticky="nsew")
+        self.AttendedArea = tk.Frame(
             self.WindowsMain,
             bg=WHITE,
             width=300,
-            height=518,
+            height=414,
             bd=0,
             highlightthickness=0,
         )
-        self.TextArea.grid(row=1, column=1, sticky="nsew")
-        self.TextArea.grid_propagate(False)
-        self.OutputText = tk.Text(
-            self.TextArea,
+        self.AttendedArea.grid(
+            row=1,
+            column=1,
+            sticky="nsew",
+        )
+        self.AttendedArea.grid_propagate(False)
+        self.AbsentArea = tk.Frame(
+            self.WindowsMain,
+            bg=WHITE,
+            width=300,
+            height=404,
+            bd=0,
+            highlightthickness=0,
+        )
+        self.AbsentArea.grid(row=2, column=1, sticky="nsew")
+        self.AbsentArea.grid_propagate(False)
+        self.AttendOutputText = tk.Text(
+            self.AttendedArea,
             width=1,
             height=1,
             fg="#000000",
@@ -47,9 +112,61 @@ class App:
             highlightthickness=0,
             wrap="char",
         )
-        self.OutputText.pack(side="left", padx=24, fill="both", expand=True)
-        self.OutputText.config(state="disabled")
-        self.OutputForCopy = ""
+        self.AttendOutputText.pack(
+            side="top",
+            padx=24,
+            fill="both",
+            expand=True,
+        )
+        self.AttendOutputText.config(state="disabled")
+        self.AbsentOutputText = tk.Text(
+            self.AbsentArea,
+            width=1,
+            height=1,
+            fg="#000000",
+            font=("Microsoft YaHei UI", 12),
+            relief="flat",
+            bd=0,
+            highlightthickness=0,
+            wrap="char",
+        )
+        self.AbsentOutputText.pack(
+            side="top",
+            padx=24,
+            fill="both",
+            expand=True,
+        )
+        self.AbsentOutputText.config(state="disabled")
+        self.AttendCopy = ""
+        self.AbsentCopy = ""
+        self.CopyButton(
+            self.AttendedArea,
+            text="一键导出已到名单",
+            command=lambda: self.Copying(self.AttendCopy),
+        )
+        self.CopyButton(
+            self.AbsentArea,
+            text="一键导出未到名单",
+            command=lambda: self.Copying(self.AbsentCopy),
+        )
+
+    def Copying(self, Copytext):
+        self.WindowsMain.clipboard_clear()
+        self.WindowsMain.clipboard_append(Copytext)
+        self.WindowsMain.update()
+
+    def ListInit(self):
+        self.ListName01 = []
+        self.ListName02 = []
+        self.ListNumber = 0
+        self.Excel01 = self.ExcelImportMoudel.load_workbook(DataPath("Name.xlsx"))
+        self.Sheet01 = self.Excel01["Sheet1"]
+
+    def CopyButton(self, master, text, command):
+        btn = btnC.ChangedButton(master, text=text, style="primary")
+        btn.pack(side="bottom")
+        btn.config(command=command)
+        return btn
 
     def StyleChange(self, OrderStyle, OrderButton):
         OrderButton.StyleChangeWhenRunning(OrderStyle)
@@ -63,12 +180,14 @@ class App:
     def WindowPreSitting(self, Size):
         Length = Size[0]
         Weigth = Size[1]
+        self.WindowsMain.iconbitmap(DataPath("icon.ico"))
         self.WindowsMain.geometry(str(Length) + "x" + str(Weigth))
         self.WindowsMain.configure(bg=GRAY)
         self.WindowsMain.grid_columnconfigure(0, weight=1)
         self.WindowsMain.grid_columnconfigure(1, weight=0, minsize=300)
         self.WindowsMain.grid_rowconfigure(0, weight=0, minsize=100)
-        self.WindowsMain.grid_rowconfigure(1, weight=1)
+        self.WindowsMain.grid_rowconfigure(1, weight=1, uniform="right")
+        self.WindowsMain.grid_rowconfigure(2, weight=1, uniform="right")
 
     def WindowsBuild(self):
         self.WindowsMain.mainloop()
@@ -104,7 +223,8 @@ class App:
         self.ListName02 = self.ListName01.copy()
 
     def ClickButton(self, OrderButton, ListPosition):
-        self.OutputForCopy = ""
+        self.AttendCopy = ""
+        self.AbsentCopy = ""
         NowStyle = OrderButton.StyleGet()
         if NowStyle == "Absent":
             self.ListAdd(ListPosition)
@@ -113,29 +233,45 @@ class App:
             self.ListReduce(ListPosition)
             self.StyleChange("Absent", OrderButton)
         self.ListOutput()
-        self.WindowsMain.clipboard_clear()
-        self.WindowsMain.clipboard_append(self.OutputForCopy)
-        self.WindowsMain.update()
 
     def ListOutput(self):
-        self.OutputText.config(state="normal")
-        Output = ""
+        self.AttendOutputText.config(state="normal")
+        self.AbsentOutputText.config(state="normal")
+        # 每次重新生成，避免重复调用时把名单不断累加
+        self.AttendCopy = ""
+        self.AbsentCopy = ""
+        AttendOutput = ""
+        AbsentOutput = ""
+        ListNum = 0
         i = 0
+        j = 0
         for name in self.ListName01:
             if name != "":
-                Output = Output + name + "，"
+                AttendOutput = AttendOutput + name + "，"
                 i = i + 1
-                self.OutputForCopy = self.OutputForCopy + name + "，"
+                self.AttendCopy = self.AttendCopy + name + "，"
             else:
-                pass
+                AbsentOutput = AbsentOutput + self.ListName02[ListNum] + "，"
+                j = j + 1
+                self.AbsentCopy = self.AbsentCopy + self.ListName02[ListNum] + "，"
             if i == 3:
-                Output = Output + "\n"
+                AttendOutput = AttendOutput + "\n"
                 i = 0
-        Output = Output[:-1]
-        self.OutputForCopy = self.OutputForCopy[:-1]
-        self.OutputText.delete("1.0", "end")
-        self.OutputText.insert("1.0", Output)
-        self.OutputText.config(state="disabled")
+            if j == 3:
+                AbsentOutput = AbsentOutput + "\n"
+                j = 0
+            ListNum = ListNum + 1
+        AttendOutput = AttendOutput[:-1]
+        self.AttendCopy = self.AttendCopy[:-1]
+        if AbsentOutput != "":
+            AbsentOutput = AbsentOutput[:-1]
+            self.AbsentCopy = self.AbsentCopy[:-1]
+        self.AttendOutputText.delete("1.0", "end")
+        self.AbsentOutputText.delete("1.0", "end")
+        self.AttendOutputText.insert("1.0", AttendOutput)
+        self.AbsentOutputText.insert("1.0", AbsentOutput)
+        self.AttendOutputText.config(state="disabled")
+        self.AbsentOutputText.config(state="disabled")
 
     def main(self):
         self.ExcelGet()
