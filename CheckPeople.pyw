@@ -1,9 +1,11 @@
 import ctypes
 import os
+import shutil
 import subprocess
 import sys
 import tkinter as tk
 import tkinter.messagebox as mb
+from tkinter import filedialog
 
 import ButtonChange as btnC
 
@@ -65,6 +67,66 @@ class App:
         self.TkInit()
         self.ListInit()
 
+    def All(self, state: bool):
+        for Btn in self.ButtonArea.winfo_children():
+            if Btn.On == state:
+                self.ClickButton(Btn, Btn.Position)
+
+    def AllButton(self):
+        AllAttendButton = btnC.ChangedButton(
+            self.AttendedArea,
+            "       一键全到       ",
+            command=lambda s=False: self.All(s),
+            padx=self.Px(16),
+            pady=self.Px(7),
+        )
+        AllAbsentButton = btnC.ChangedButton(
+            self.AbsentArea,
+            "     一键全未到     ",
+            command=lambda s=True: self.All(s),
+            padx=self.Px(16),
+            pady=self.Px(7),
+        )
+        AllAttendButton.pack()
+        AllAbsentButton.pack()
+
+    def RebuildButton(self):
+        for Btn in self.ButtonArea.winfo_children():
+            Btn.destroy()
+        self.AttendCopy = ""
+        self.AbsentCopy = ""
+        self.ListInit()
+        self.ExcelGet()
+        self.MainButtonBuild()
+
+    def ImportFunc(self):
+        # 只负责把选中的名单拷成程序目录里的 Name.xlsx，成功返回 True、取消返回 False
+        FilePath = filedialog.askopenfilename(
+            title="请选择文件", filetypes=[("Excel 文件", "*.xlsx")]
+        )
+        if not FilePath:
+            return False
+        Target = DataPath("Name.xlsx")
+        if os.path.normcase(os.path.abspath(FilePath)) == os.path.normcase(
+            os.path.abspath(Target)
+        ):
+            mb.showerror("警告", "请勿选取已有的Name.xlsx文件！")
+            return self.ImportFunc()
+        try:
+            shutil.copy(FilePath, Target)
+        except shutil.SameFileError:
+            mb.showerror("警告", "请勿选取已有的Name.xlsx文件！")
+            return self.ImportFunc()
+        except PermissionError:
+            mb.showerror("警告", "Name.xlsx 正被 Excel 打开，请关闭后再试。")
+            return False
+        return True
+
+    def ImportButton(self):
+        # 给界面右上角那个按钮用：拷好名单后原地重建按钮
+        if self.ImportFunc():
+            self.RebuildButton()
+
     def Px(self, Number):
         return int(round(Number * self.Scale))
 
@@ -99,10 +161,11 @@ class App:
             TestList = openpyxl.load_workbook(DataPath("Name.xlsx"))
             del TestList
         except FileNotFoundError:
-            self.ErrorTk(
-                "启动失败",
-                "您需要在当前文件所在的文件夹内放入Name.xlsx文件，或者把您的名单改为Name.xlsx",
-            )
+            if not self.ImportFunc():
+                self.ErrorTk(
+                    "启动失败",
+                    "您需要在当前文件所在的文件夹内放入Name.xlsx文件，或者把您的名单改为Name.xlsx",
+                )
             return
 
     def TkInit(self):
@@ -121,7 +184,21 @@ class App:
             bg=BLUE,
             fg="#ffffff",
             font=("Microsoft YaHei UI", 10),
-        ).grid(row=1, column=0, padx=self.Px(24), pady=self.Px(6))
+        ).grid(row=1, column=0, padx=self.Px(24), pady=self.Px(6), sticky="w")
+        btnC.ChangedButton(
+            self.header,
+            text="点击这里导入文件",
+            command=lambda: self.ImportButton(),
+        ).grid(
+            row=0,
+            column=1,
+            rowspan=2,
+            padx=self.Px(10),
+            pady=self.Px(10),
+            ipadx=self.Px(8),
+            ipady=self.Px(7),
+            sticky="e",
+        )
         self.ButtonArea = tk.Frame(self.WindowsMain, bg=GRAY)
         self.ButtonArea.grid(row=1, column=0, rowspan=2, sticky="nsew")
         self.AttendedArea = tk.Frame(
@@ -195,6 +272,7 @@ class App:
             text="一键导出未到名单",
             command=lambda: self.Copying(self.AbsentCopy),
         )
+        self.AllButton()
 
     def Copying(self, Copytext):
         self.WindowsMain.clipboard_clear()
@@ -240,6 +318,7 @@ class App:
         self.WindowsMain.grid_rowconfigure(0, weight=0, minsize=self.Px(100))
         self.WindowsMain.grid_rowconfigure(1, weight=1, uniform="right")
         self.WindowsMain.grid_rowconfigure(2, weight=1, uniform="right")
+        self.header.grid_columnconfigure(0, weight=1)
 
     def WindowsBuild(self):
         self.WindowsMain.mainloop()
@@ -256,6 +335,8 @@ class App:
             sticky="w",
         )
         btn.config(command=lambda b=btn, idx=ListPosition: self.ClickButton(b, idx))
+        btn.Position = ListPosition
+        btn.On = True
 
     def MainButtonBuild(self):
         self.ListOutput()
@@ -282,7 +363,7 @@ class App:
             i = i + 1
         self.ListName02 = self.ListName01.copy()
 
-    def ClickButton(self, OrderButton, ListPosition):
+    def ClickButton(self, OrderButton: btnC.ChangedButton, ListPosition):
         self.AttendCopy = ""
         self.AbsentCopy = ""
         NowStyle = OrderButton.StyleGet()
@@ -293,6 +374,7 @@ class App:
             self.ListReduce(ListPosition)
             self.StyleChange("Absent", OrderButton)
         self.ListOutput()
+        OrderButton.On = not OrderButton.On
 
     def ListOutput(self):
         self.AttendOutputText.config(state="normal")
